@@ -110,10 +110,10 @@ else:
 
 ### Output:
 
-Hence, Successfully implemented Information Retrieval Using Vector Space Model in Python.
-
 <img width="542" height="182" alt="image" src="https://github.com/user-attachments/assets/d4a2f050-dfae-453f-ace1-0222c7e8dbb5" />
 
 ### Result:
+
+Hence, Successfully implemented Information Retrieval Using Vector Space Model in Python.
 
 
