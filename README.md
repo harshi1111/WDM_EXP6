@@ -1,5 +1,6 @@
+### NAME - HARSHITHA V
+### REG NO - 212223230074
 ### EX6 Information Retrieval Using Vector Space Model in Python
-### DATE: 
 ### AIM: To implement Information Retrieval Using Vector Space Model in Python.
 ### Description: 
 <div align = "justify">
@@ -19,25 +20,18 @@ sklearn to demonstrate Information Retrieval using the Vector Space Model.
 ```
 import requests
 from bs4 import BeautifulSoup
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+import numpy as np
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 import string
 import nltk
+from tabulate import tabulate
 
-# The NLTK downloader will try to download the necessary packages.
-# This might require an internet connection the first time it's run.
-try:
-    nltk.data.find('tokenizers/punkt')
-except nltk.downloader.DownloadError:
-    nltk.download('punkt')
-try:
-    nltk.data.find('corpora/stopwords')
-except nltk.downloader.DownloadError:
-    nltk.download('stopwords')
+nltk.download('punkt')
+nltk.download('stopwords')
 
-# Sample documents stored in a dictionary
+# Sample documents
 documents = {
     "doc1": "This is the first document.",
     "doc2": "This document is the second document.",
@@ -45,72 +39,107 @@ documents = {
     "doc4": "Is this the first document?",
 }
 
-# Preprocessing function to tokenize and remove stopwords/punctuation
+# Preprocessing
 def preprocess_text(text):
     tokens = word_tokenize(text.lower())
-    stop_words = set(stopwords.words("english"))
-    tokens = [token for token in tokens if token not in stop_words and token not in string.punctuation]
+    tokens = [token for token in tokens if token not in stopwords.words("english") and token not in string.punctuation]
     return " ".join(tokens)
 
-# Preprocess documents and store them in a dictionary
 preprocessed_docs = {doc_id: preprocess_text(doc) for doc_id, doc in documents.items()}
 
-# Construct TF-IDF matrix
+# Vectorizers
+count_vectorizer = CountVectorizer()
+count_matrix = count_vectorizer.fit_transform(preprocessed_docs.values())
+
 tfidf_vectorizer = TfidfVectorizer()
 tfidf_matrix = tfidf_vectorizer.fit_transform(preprocessed_docs.values())
 
-# Calculate cosine similarity between query and documents
-def search(query, tfidf_matrix, tfidf_vectorizer):
-    # Preprocess the query
-    query_processed = preprocess_text(query)
-    
-    # Transform the query into a TF-IDF vector
-    query_vector = tfidf_vectorizer.transform([query_processed])
-    
-    # Calculate cosine similarity between the query vector and all document vectors
-    cosine_similarities = cosine_similarity(query_vector, tfidf_matrix).flatten()
-    
-    # Pair documents with their similarity scores
-    doc_ids = list(documents.keys())
-    search_results = []
-    for i, score in enumerate(cosine_similarities):
-        # Only include results with a similarity score > 0
-        if score > 0:
-            doc_id = doc_ids[i]
-            original_doc = documents[doc_id]
-            search_results.append((doc_id, original_doc, score))
-            
-    # Sort results by similarity score in descending order
-    search_results.sort(key=lambda x: x[2], reverse=True)
-    
-    return search_results
+terms = tfidf_vectorizer.get_feature_names_out()
 
-# Get input from user
-query = input("Enter your query: ")
+# Term Frequency Table
+print("\n--- Term Frequencies (TF) ---\n")
+tf_table = count_matrix.toarray()
+print(tabulate([["Doc ID"] + list(terms)] + [[list(preprocessed_docs.keys())[i]] + list(row) for i, row in enumerate(tf_table)], headers="firstrow", tablefmt="grid"))
+
+# Document Frequency (DF) and IDF Table
+df = np.sum(count_matrix.toarray() > 0, axis=0)
+idf = tfidf_vectorizer.idf_
+
+df_idf_table = []
+for i, term in enumerate(terms):
+    df_idf_table.append([term, df[i], round(idf[i], 4)])
+
+print("\n--- Document Frequency (DF) and Inverse Document Frequency (IDF) ---\n")
+print(tabulate(df_idf_table, headers=["Term", "Document Frequency (DF)", "Inverse Document Frequency (IDF)"], tablefmt="grid"))
+
+# TF-IDF Table
+print("\n--- TF-IDF Weights ---\n")
+tfidf_table = tfidf_matrix.toarray()
+print(tabulate([["Doc ID"] + list(terms)] + [[list(preprocessed_docs.keys())[i]] + list(map(lambda x: round(x, 4), row)) for i, row in enumerate(tfidf_table)], headers="firstrow", tablefmt="grid"))
+
+# Manual Cosine Similarity calculation
+def cosine_similarity_manual(vec1, vec2):
+    dot_product = np.dot(vec1, vec2)
+    norm_vec1 = np.linalg.norm(vec1)
+    norm_vec2 = np.linalg.norm(vec2)
+    similarity = dot_product / (norm_vec1 * norm_vec2) if norm_vec1 != 0 and norm_vec2 != 0 else 0.0
+    return dot_product, norm_vec1, norm_vec2, similarity
+
+# Search function
+def search(query, tfidf_matrix, tfidf_vectorizer):
+    preprocessed_query = preprocess_text(query)
+    query_vector = tfidf_vectorizer.transform([preprocessed_query]).toarray()[0]
+    results = []
+
+    for idx, doc_vector in enumerate(tfidf_matrix.toarray()):
+        doc_id = list(preprocessed_docs.keys())[idx]
+        doc_text = documents[doc_id]
+        dot, norm_q, norm_d, sim = cosine_similarity_manual(query_vector, doc_vector)
+        results.append([doc_id, doc_text, round(dot, 4), round(norm_q, 4), round(norm_d, 4), round(sim, 4)])
+    
+    results.sort(key=lambda x: x[5], reverse=True)
+    return results, query_vector
+
+# Input from user
+query = input("\nEnter your query: ")
 
 # Perform search
-search_results = search(query, tfidf_matrix, tfidf_vectorizer)
+results_table, query_vector = search(query, tfidf_matrix, tfidf_vectorizer)
 
-# Display search results
-print("\nQuery:", query)
-if search_results:
-    for i, result in enumerate(search_results, start=1):
-        print(f"\nRank: {i}")
-        print("Document ID:", result[0])
-        print("Document:", result[1])
-        print(f"Similarity Score: {result[2]:.4f}")
-        print("----------------------")
+# Display Cosine Similarity Table
+print("\n--- Search Results and Cosine Similarity ---\n")
+headers = ["Doc ID", "Document", "Dot Product", "Query Magnitude", "Doc Magnitude", "Cosine Similarity"]
+print(tabulate(results_table, headers=headers, tablefmt="grid"))
+# Display Query TF-IDF Weights
+print("\n--- Query TF-IDF Weights ---\n")
+query_weights = [(terms[i], round(query_vector[i], 4)) for i in range(len(terms)) if query_vector[i] > 0]
+print(tabulate(query_weights, headers=["Term", "Query TF-IDF Weight"], tablefmt="grid"))
 
-    # Get the highest rank cosine score
-    highest_rank_score = max(result[2] for result in search_results)
-    print("The highest rank cosine score is:", f"{highest_rank_score:.4f}")
-else:
-    print("No relevant documents found for your query.")
+# Display Ranking
+print("\n--- Ranked Documents ---\n")
+ranked_docs = []
+for idx, res in enumerate(results_table, start=1):
+    ranked_docs.append([idx, res[0], res[1], res[5]])
+
+print(tabulate(ranked_docs, headers=["Rank", "Document ID", "Document Text", "Cosine Similarity"], tablefmt="grid"))
+# Find the document with the highest cosine similarity
+highest_doc = max(results_table, key=lambda x: x[5])  # x[5] is the cosine similarity
+highest_doc_id = highest_doc[0]
+highest_doc_text = highest_doc[1]
+highest_score = highest_doc[5]
+
+print(f"\nThe highest rank cosine score is: {highest_score} (Document ID: {highest_doc_id})")
 ```
 
 ### Output:
+<img width="976" height="300" alt="image" src="https://github.com/user-attachments/assets/39c6562a-4768-486a-995d-8ad1a7115b78" />
 
-<img width="542" height="182" alt="image" src="https://github.com/user-attachments/assets/d4a2f050-dfae-453f-ace1-0222c7e8dbb5" />
+<img width="885" height="351" alt="image" src="https://github.com/user-attachments/assets/53f94709-5021-412b-b5d3-7650ce3741b5" />
+
+<img width="894" height="311" alt="image" src="https://github.com/user-attachments/assets/0899bab0-1d70-47bf-8cb5-4054737141c4" />
+<img width="1348" height="533" alt="image" src="https://github.com/user-attachments/assets/4c11e177-c814-4036-b000-56add865f978" />
+
+
 
 ### Result:
 
