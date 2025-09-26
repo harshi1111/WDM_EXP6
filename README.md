@@ -139,7 +139,8 @@ print(f"\nThe highest rank cosine score is: {highest_score} (Document ID: {highe
 <img width="894" height="311" alt="image" src="https://github.com/user-attachments/assets/0899bab0-1d70-47bf-8cb5-4054737141c4" />
 <img width="1348" height="533" alt="image" src="https://github.com/user-attachments/assets/4c11e177-c814-4036-b000-56add865f978" />
 
-<img width="1046" height="335" alt="image" src="https://github.com/user-attachments/assets/bb4848cb-6b8a-43fd-ae08-2067075c0309" />
+<img width="984" height="334" alt="image" src="https://github.com/user-attachments/assets/9881d8dd-d2c8-466c-963a-28ba95b3c25a" />
+
 
 
 ### Result:
